@@ -19,7 +19,7 @@ from ._version import __version__
 # Updated when we rebase against a newer upstream + ungoogled-chromium tag.
 # ---------------------------------------------------------------------------
 CHROMIUM_VERSION = "148.0.7778.96"
-CHROMIUM_RELEASE_TAG = "chromium-v148.0.7778.96-stealth6"
+CHROMIUM_RELEASE_TAG = "chromium-v148.0.7778.96-stealth5"
 
 PLATFORM_CHROMIUM_VERSIONS: dict[str, str] = {
     "linux-x64": CHROMIUM_VERSION,

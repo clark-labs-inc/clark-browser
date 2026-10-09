@@ -631,7 +631,7 @@ def test_download_url_uses_current_stealth_release(monkeypatch) -> None:
     assert (
         config.get_download_url()
         == "https://github.com/clark-labs-inc/clark-browser/releases/download/"
-        "chromium-v148.0.7778.96-stealth6/clark-browser-linux-x64.tar.gz"
+        "chromium-v148.0.7778.96-stealth5/clark-browser-linux-x64.tar.gz"
     )
 
 
@@ -646,7 +646,7 @@ def test_windows_download_url_uses_zip_archive(monkeypatch) -> None:
     assert (
         config.get_download_url()
         == "https://github.com/clark-labs-inc/clark-browser/releases/download/"
-        "chromium-v148.0.7778.96-stealth6/clark-browser-windows-x64.zip"
+        "chromium-v148.0.7778.96-stealth5/clark-browser-windows-x64.zip"
     )
 
 

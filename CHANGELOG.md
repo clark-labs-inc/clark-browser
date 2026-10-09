@@ -30,8 +30,10 @@
   extraction and on existing Python-managed caches (issue #4).
 - Include `repair-sandbox.ps1` in Windows portable packages for direct launches.
 - Add Windows NTFS and released-binary startup regression coverage.
-- Point downloads at `chromium-v148.0.7778.96-stealth6`. Chromium executables
-  are carried forward from stealth5; the Windows ZIP adds the repair script.
+- Guard Windows credential-provider startup when ungoogled Chromium removes
+  its preference registration. Windows binaries require a source rebuild before
+  the staged stealth6 release can be published. Downloads remain on stealth5
+  until the release passes native startup verification.
 
 ## 0.2.1 — patch bump (June 2026)
 
