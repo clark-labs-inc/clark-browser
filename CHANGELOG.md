@@ -24,6 +24,15 @@
   parses JA3/JA4 fingerprints from the Clark-stealth binary and compares
   against a known real-Chrome baseline.
 
+## 0.2.2 — Windows sandbox permissions (2026-10-09)
+
+- Prepare AppContainer and LPAC read/execute permissions after Windows ZIP
+  extraction and on existing Python-managed caches (issue #4).
+- Include `repair-sandbox.ps1` in Windows portable packages for direct launches.
+- Add Windows NTFS and released-binary startup regression coverage.
+- Point downloads at `chromium-v148.0.7778.96-stealth6`. Chromium executables
+  are carried forward from stealth5; the Windows ZIP adds the repair script.
+
 ## 0.2.1 — patch bump (June 2026)
 
 ## 0.2.0 — fingerprint plumbing fixes + audio noise (June 2026)

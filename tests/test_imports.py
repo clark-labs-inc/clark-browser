@@ -631,7 +631,7 @@ def test_download_url_uses_current_stealth_release(monkeypatch) -> None:
     assert (
         config.get_download_url()
         == "https://github.com/clark-labs-inc/clark-browser/releases/download/"
-        "chromium-v148.0.7778.96-stealth5/clark-browser-linux-x64.tar.gz"
+        "chromium-v148.0.7778.96-stealth6/clark-browser-linux-x64.tar.gz"
     )
 
 
@@ -646,7 +646,7 @@ def test_windows_download_url_uses_zip_archive(monkeypatch) -> None:
     assert (
         config.get_download_url()
         == "https://github.com/clark-labs-inc/clark-browser/releases/download/"
-        "chromium-v148.0.7778.96-stealth5/clark-browser-windows-x64.zip"
+        "chromium-v148.0.7778.96-stealth6/clark-browser-windows-x64.zip"
     )
 
 
@@ -673,6 +673,7 @@ def test_zip_archive_extracts_and_flattens_single_dir(monkeypatch, tmp_path) -> 
         zf.writestr("clark-browser-windows-x64/chrome.exe", "binary")
         zf.writestr("clark-browser-windows-x64/resources.pak", "pak")
     dest = tmp_path / "extract"
+    monkeypatch.setattr(download, "_prepare_windows_sandbox", lambda _: None)
 
     download._extract_archive(archive, dest)
 
@@ -833,3 +834,52 @@ def test_viewport_from_args_falls_back_without_screen() -> None:
     from clarkbrowser import config
     vp = config.get_viewport_from_args([])
     assert vp == config.DEFAULT_VIEWPORT
+
+
+def test_windows_sandbox_permissions_after_zip_extraction(monkeypatch, tmp_path):
+    import zipfile
+    from clarkbrowser import download
+
+    calls = []
+    monkeypatch.setattr(download, "get_binary_path", lambda: tmp_path / "browser" / "chrome.exe")
+    monkeypatch.setattr(download.platform, "system", lambda: "Windows")
+    def run(args, **kwargs):
+        # Permissions must be applied to the final layout, including resources.
+        assert (tmp_path / "browser" / "chrome.exe").exists()
+        assert (tmp_path / "browser" / "resources.pak").exists()
+        calls.append((args, kwargs))
+    monkeypatch.setattr(download.subprocess, "run", run)
+    archive = tmp_path / "browser.zip"
+    with zipfile.ZipFile(archive, "w") as zf:
+        zf.writestr("build/chrome.exe", "binary")
+        zf.writestr("build/resources.pak", "resources")
+    download._extract_archive(archive, tmp_path / "browser")
+    assert calls == [([
+        "icacls.exe", str((tmp_path / "browser").resolve()), "/grant",
+        "*S-1-15-2-1:(OI)(CI)(RX)", "*S-1-15-2-2:(OI)(CI)(RX)", "/T", "/Q",
+    ], dict(check=True, capture_output=True, text=True, timeout=60))]
+
+
+def test_windows_cached_binary_repairs_permissions(monkeypatch, tmp_path):
+    from clarkbrowser import download
+    binary = tmp_path / "chrome.exe"
+    binary.touch()
+    calls = []
+    monkeypatch.setattr(download, "get_local_binary_override", lambda: None)
+    monkeypatch.setattr(download, "get_binary_path", lambda: binary)
+    monkeypatch.setattr(download, "_is_executable", lambda _: True)
+    monkeypatch.setattr(download.platform, "system", lambda: "Windows")
+    monkeypatch.setattr(download, "_prepare_windows_sandbox", calls.append)
+    assert download.ensure_binary() == str(binary)
+    assert calls == [tmp_path]
+
+
+def test_windows_sandbox_permission_failure_is_actionable(monkeypatch, tmp_path):
+    import subprocess
+    import pytest
+    from clarkbrowser import download
+    def fail(*args, **kwargs):
+        raise subprocess.CalledProcessError(1, args[0])
+    monkeypatch.setattr(download.subprocess, "run", fail)
+    with pytest.raises(RuntimeError, match="repair-sandbox.ps1"):
+        download._prepare_windows_sandbox(tmp_path)

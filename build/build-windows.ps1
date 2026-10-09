@@ -679,6 +679,8 @@ foreach ($dir in @("locales", "MEIPreload", "WidevineCdm", "SwiftShader")) {
   }
 }
 
+Copy-Item (Join-Path $PSScriptRoot "repair-sandbox.ps1") -Destination $PackageRoot
+
 $Zip = Join-Path $Out "clark-browser-windows-x64.zip"
 Remove-Item -Force $Zip -ErrorAction SilentlyContinue
 Compress-Archive -Path "$PackageRoot\*" -DestinationPath $Zip -CompressionLevel Optimal

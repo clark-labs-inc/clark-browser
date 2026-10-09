@@ -21,3 +21,22 @@ jobs:
           pip install -e .[dev]
       - name: Smoke tests (no binary required)
         run: pytest tests/test_imports.py -v
+
+  windows-sandbox:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e .[dev]
+      - name: Download released Windows binary for sandbox reproduction
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          gh release download chromium-v148.0.7778.96-stealth5 --repo clark-labs-inc/clark-browser --pattern clark-browser-windows-x64.zip --dir "$env:RUNNER_TEMP"
+          "CLARK_WINDOWS_TEST_ARCHIVE=$env:RUNNER_TEMP\clark-browser-windows-x64.zip" >> $env:GITHUB_ENV
+      - name: Verify portable browser NTFS permissions
+        run: python -m pytest tests/test_windows_sandbox.py -v

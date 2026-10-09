@@ -124,6 +124,28 @@ The Linux tarball contains the `chrome` binary, a `headless_shell`
 compatibility launcher, Chrome resource packs, and runtime helper libraries.
 The macOS arm64 build produces a normal `Chromium.app` bundle.
 
+### Windows portable builds
+
+After extracting a Windows source-build ZIP, prepare the browser directory's
+sandbox permissions before launching `chrome.exe`:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\repair-sandbox.ps1
+.\chrome.exe --headless=new --dump-dom about:blank
+```
+
+For an older ZIP, run the repository script with
+`-BrowserDirectory "C:\path\to\extracted\browser"`. The Python wrapper applies
+these permissions automatically to downloaded and cached Windows builds.
+For `CLARK_BINARY_PATH`, run the repair script on that binary's directory.
+
+`Sandbox cannot access executable ... Check filesystem permissions are valid`
+(issue #4) means an AppContainer access check failed. Portable ZIP extraction
+does not preserve the NTFS permissions normally set by Chromium's installer.
+The script grants AppContainer and LPAC read/execute access only to the browser
+folder and its contents. Keep profiles and private data outside that folder.
+See [Chromium's LPAC filesystem requirements](https://chromium.googlesource.com/chromium/src/+/HEAD/docs/design/sandbox.md#lpac-file-system-permissions).
+
 ## Stealth surface
 
 `--fingerprint-*` switches drive the patches. The Python launcher supplies a

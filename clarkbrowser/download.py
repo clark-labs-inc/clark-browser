@@ -55,6 +55,8 @@ def ensure_binary() -> str:
 
     binary_path = get_binary_path()
     if binary_path.exists() and _is_executable(binary_path):
+        if platform.system() == "Windows":
+            _prepare_windows_sandbox(binary_path.parent)
         return str(binary_path)
 
     logger.info(
@@ -124,6 +126,9 @@ def _extract_archive(archive_path: Path, dest_dir: Path) -> None:
 
     _flatten_single_subdir(dest_dir)
 
+    if platform.system() == "Windows":
+        _prepare_windows_sandbox(dest_dir)
+
     bp = get_binary_path()
     if bp.exists():
         _make_executable(bp)
@@ -172,6 +177,29 @@ def _flatten_single_subdir(dest_dir: Path) -> None:
         for item in subdir.iterdir():
             shutil.move(str(item), str(dest_dir / item.name))
         subdir.rmdir()
+
+
+def _prepare_windows_sandbox(binary_dir: Path) -> None:
+    """Grant AppContainer/LPAC read-execute access to portable browser files.
+
+    ZIPs do not preserve NTFS ACLs. Chromium normally sets these permissions
+    in its installer; restrict the grants to the browser distribution tree.
+    Numeric SIDs work on localized Windows installations too.
+    """
+    try:
+        subprocess.run(
+            [
+                "icacls.exe", str(binary_dir.resolve()), "/grant",
+                "*S-1-15-2-1:(OI)(CI)(RX)",
+                "*S-1-15-2-2:(OI)(CI)(RX)", "/T", "/Q",
+            ],
+            check=True, capture_output=True, text=True, timeout=60,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise RuntimeError(
+            f"Cannot prepare Windows sandbox permissions for {binary_dir}. "
+            "Run repair-sandbox.ps1 in the extracted browser directory."
+        ) from exc
 
 
 def _is_executable(path: Path) -> bool:
