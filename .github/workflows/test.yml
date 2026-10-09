@@ -38,5 +38,17 @@ jobs:
         run: |
           gh release download chromium-v148.0.7778.96-stealth5 --repo clark-labs-inc/clark-browser --pattern clark-browser-windows-x64.zip --dir "$env:RUNNER_TEMP"
           "CLARK_WINDOWS_TEST_ARCHIVE=$env:RUNNER_TEMP\clark-browser-windows-x64.zip" >> $env:GITHUB_ENV
+      - name: Prepare native crash diagnostics
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://download.sysinternals.com/files/Procdump.zip -OutFile "$env:RUNNER_TEMP\Procdump.zip"
+          Expand-Archive "$env:RUNNER_TEMP\Procdump.zip" "$env:RUNNER_TEMP\procdump"
       - name: Verify portable browser NTFS permissions
         run: python -m pytest tests/test_windows_sandbox.py -v
+      - name: Preserve native crash diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-crash-diagnostics
+          path: ${{ runner.temp }}/chrome-dumps
+          if-no-files-found: ignore

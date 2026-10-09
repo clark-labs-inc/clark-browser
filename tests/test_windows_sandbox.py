@@ -92,6 +92,21 @@ def test_released_browser_sandbox_startup(tmp_path):
     assert "Sandbox cannot access executable" in before_error, before_error
     _prepare_windows_sandbox(root)
     after = launch(tmp_path / "after-profile")
+    if after.returncode != 0:
+        print("Before stderr:", before_error)
+        print("After stderr:", after.stderr)
+        # Capture a native exception dump rather than infer the crash cause.
+        debugger = Path(os.environ.get("RUNNER_TEMP", str(tmp_path))) / "procdump" / "procdump64.exe"
+        if debugger.exists():
+            dump_dir = Path(os.environ["RUNNER_TEMP"]) / "chrome-dumps"
+            dump_dir.mkdir(exist_ok=True)
+            cmd = list(after.args)
+            cmd = [arg.replace("after-profile", "debug-profile") for arg in cmd]
+            subprocess.run([str(debugger), "-accepteula", "-ma", "-e", "1", "-x",
+                            str(dump_dir), *cmd], timeout=60)
+        subprocess.run(["pwsh", "-NoProfile", "-Command",
+                        "Get-WinEvent -FilterHashtable @{LogName='Application'; Id=1000} -MaxEvents 3 | Format-List Message"],
+                       check=False)
     assert after.returncode == 0, after.stderr
     assert "clark-sandbox-smoke" in after.stdout
     assert "Sandbox cannot access executable" not in after.stderr
