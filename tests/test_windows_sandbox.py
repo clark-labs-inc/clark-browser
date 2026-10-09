@@ -44,11 +44,11 @@ foreach ($file in Get-ChildItem -LiteralPath $Root -Recurse) {
 """
     check = tmp_path / "check.ps1"
     check.write_text(script)
-    subprocess.run(["powershell", "-NoProfile", "-File", str(check), str(root)], check=True)
+    subprocess.run(["pwsh", "-NoProfile", "-File", str(check), str(root)], check=True)
     repair = Path(__file__).resolve().parents[1] / "build" / "repair-sandbox.ps1"
-    subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+    subprocess.run(["pwsh", "-NoProfile", "-ExecutionPolicy", "Bypass",
                     "-File", str(repair), "-BrowserDirectory", str(root)], check=True)
-    subprocess.run(["powershell", "-NoProfile", "-File", str(check), str(root)], check=True)
+    subprocess.run(["pwsh", "-NoProfile", "-File", str(check), str(root)], check=True)
 
 
 def test_released_browser_sandbox_startup(tmp_path):
@@ -69,13 +69,18 @@ def test_released_browser_sandbox_startup(tmp_path):
         subprocess.run(["icacls.exe", str(root), "/remove:g", sid, "/T", "/Q"], check=True)
 
     def launch(profile):
-        command = [str(binary), "--headless=new", "--disable-gpu",
+        command = [str(binary), "--headless=new", "--fingerprint=12345",
                    "--enable-features=NetworkServiceSandbox", "--no-first-run",
-                   "--no-default-browser-check", "--enable-logging=stderr",
+                   "--no-default-browser-check", "--enable-logging",
+                   f"--log-file={profile}.log",
                    f"--user-data-dir={profile}", "--dump-dom",
                    "data:text/html,<title>clark-sandbox-smoke</title>"]
         try:
-            return subprocess.run(command, capture_output=True, text=True, timeout=45)
+            result = subprocess.run(command, capture_output=True, text=True, timeout=45)
+            logfile = Path(f"{profile}.log")
+            if logfile.exists():
+                result.stderr += logfile.read_text(errors="replace")
+            return result
         except subprocess.TimeoutExpired as exc:
             # A denied utility launch may repeatedly restart until timeout.
             return subprocess.CompletedProcess(command, -1, exc.stdout or b"", exc.stderr or b"")
