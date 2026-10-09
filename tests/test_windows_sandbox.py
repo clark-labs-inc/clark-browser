@@ -102,11 +102,14 @@ def test_released_browser_sandbox_startup(tmp_path):
             dump_dir.mkdir(exist_ok=True)
             cmd = list(after.args)
             cmd = [arg.replace("after-profile", "debug-profile") for arg in cmd]
-            subprocess.run([str(debugger), "-accepteula", "-ma", "-e", "1", "-x",
+            subprocess.run([str(debugger), "-accepteula", "-ma", "-e", "1", "-f", "80000003", "-x",
                             str(dump_dir), *cmd], timeout=60)
-        subprocess.run(["pwsh", "-NoProfile", "-Command",
-                        "Get-WinEvent -FilterHashtable @{LogName='Application'; Id=1000} -MaxEvents 3 | Format-List Message"],
-                       check=False)
+        control_cmd = [arg.replace("after-profile", "control-profile") for arg in after.args]
+        control_cmd.insert(1, "--no-sandbox")
+        control = subprocess.run(control_cmd, capture_output=True, text=True, timeout=30)
+        print("Unsandboxed diagnostic control:", control)
+        for log in tmp_path.glob("*.log"):
+            print(log.name, log.read_text(errors="replace"))
     assert after.returncode == 0, after.stderr
     assert "clark-sandbox-smoke" in after.stdout
     assert "Sandbox cannot access executable" not in after.stderr
