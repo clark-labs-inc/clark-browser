@@ -562,6 +562,23 @@ s = s.replace(
     "prefs::kSignedInWithCredentialProvider",
     '"signin.with_credential_provider"',
 )
+# ungoogled-chromium removes this preference's registration. Keep the Google
+# credential-provider entry points inert when that integration is absent;
+# replacing its removed constant with a literal only fixes compilation.
+for signature, result in (
+    ("void SigninWithCredentialProviderIfPossible(Profile* profile) {", "return;"),
+    ("bool ReauthWithCredentialProviderIfPossible(Profile* profile) {", "return false;"),
+):
+    guard = (
+        signature + "\n"
+        '  // clark-browser: ungoogled profiles have no GCPW preference.\n'
+        '  if (!profile->GetPrefs()->FindPreference("signin.with_credential_provider"))\n'
+        f"    {result}\n"
+    )
+    if guard not in s:
+        if signature not in s:
+            raise SystemExit(f"credential provider entry point not found: {signature}")
+        s = s.replace(signature, guard, 1)
 p.write_text(s)
 '@ | & $PythonExe @PythonArgs -
 if ($LASTEXITCODE -ne 0) {

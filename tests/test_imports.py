@@ -883,3 +883,31 @@ def test_windows_sandbox_permission_failure_is_actionable(monkeypatch, tmp_path)
     monkeypatch.setattr(download.subprocess, "run", fail)
     with pytest.raises(RuntimeError, match="repair-sandbox.ps1"):
         download._prepare_windows_sandbox(tmp_path)
+
+
+def test_windows_signin_patch_guards_removed_google_preference(tmp_path, monkeypatch):
+    """Exercise the build transformation on upstream-shaped entry points."""
+    from pathlib import Path
+    script = (Path(__file__).resolve().parents[1] / "build" / "build-windows.ps1").read_text()
+    marker = 'p = Path("chrome/browser/signin/signin_util_win.cc")'
+    block = script[script.index(marker):].split("'@ | & $PythonExe", 1)[0]
+    source = tmp_path / "chrome/browser/signin/signin_util_win.cc"
+    source.parent.mkdir(parents=True)
+    source.write_text('''#include "components/signin/public/base/signin_metrics.h"
+void SigninWithCredentialProviderIfPossible(Profile* profile) {
+  if (profile->GetPrefs()->GetBoolean(prefs::kSignedInWithCredentialProvider))
+    return;
+}
+bool ReauthWithCredentialProviderIfPossible(Profile* profile) {
+  auto* identity_manager = IdentityManagerFactory::GetForProfile(profile);
+  return profile->GetPrefs()->GetBoolean(prefs::kSignedInWithCredentialProvider);
+}
+''')
+    monkeypatch.chdir(tmp_path)
+    exec("from pathlib import Path\n" + block)
+    patched = source.read_text()
+    assert patched.index('FindPreference("signin.with_credential_provider")') < patched.index('GetBoolean("signin.with_credential_provider")')
+    reauth = patched.split("bool ReauthWithCredentialProviderIfPossible", 1)[1]
+    assert reauth.index("return false;") < reauth.index("IdentityManagerFactory")
+    exec("from pathlib import Path\n" + block)
+    assert source.read_text() == patched
